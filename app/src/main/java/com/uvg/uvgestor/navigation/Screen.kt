@@ -1,6 +1,7 @@
 package com.uvg.uvgestor.navigation
 
 sealed class Screen(val route: String) {
+    object Welcome : Screen("welcome")
     object Login : Screen("login")
     object Home : Screen("home")
     object Transactions : Screen("transactions")
