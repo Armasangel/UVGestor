@@ -1,4 +1,4 @@
-package com.uvg.uvgestor.ui.screens
+/*package com.uvg.uvgestor.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -233,3 +233,4 @@ fun FilterChip(text: String, backgroundColor: Color, textColor: Color) {
         }
     }
 }
+*/

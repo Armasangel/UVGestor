@@ -1,3 +1,4 @@
+
 package com.uvg.uvgestor.ui.screens
 
 import androidx.compose.foundation.background
@@ -8,7 +9,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,7 +26,7 @@ import com.uvg.uvgestor.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(navController: NavHostController) {
+fun RegisterScreen (navController: NavHostController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -36,7 +36,7 @@ fun LoginScreen(navController: NavHostController) {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Iniciar Sesión",
+                        text = "Registro de usuario",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -95,7 +95,7 @@ fun LoginScreen(navController: NavHostController) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "UV",
+                    text = "UVG",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF4CAF50)
@@ -106,7 +106,7 @@ fun LoginScreen(navController: NavHostController) {
 
             // Título
             Text(
-                text = "Bienvenido de nuevo",
+                text = "Bienvenido",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1F1F1F),
@@ -117,7 +117,7 @@ fun LoginScreen(navController: NavHostController) {
 
             // Subtítulo
             Text(
-                text = "Inicia sesión en tu cuenta de UVGestor",
+                text = "Crea tu cuenta en UVGestor",
                 fontSize = 14.sp,
                 color = Color(0xFF9E9E9E),
                 textAlign = TextAlign.Center
@@ -220,7 +220,7 @@ fun LoginScreen(navController: NavHostController) {
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
-                    text = "Iniciar Sesión",
+                    text = "Crear cuenta",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White
@@ -264,28 +264,8 @@ fun LoginScreen(navController: NavHostController) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ¿No tienes una cuenta?
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "¿No tienes una cuenta?  ",
-                    fontSize = 14.sp,
-                    color = Color(0xFF9E9E9E)
-                )
-                TextButton(
-                    onClick = { /* TODO: Navegar a registro */ },
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Text(
-                        text = "Crear cuenta",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF00C853)
-                    )
-                }
+
+
             }
         }
     }
-}
