@@ -5,5 +5,7 @@ data class Transaction(
     val title: String,
     val amount: Double,
     val type: String, // ingreso o gasto
-    val date: String
+    val date: String,
+    val category: String = "Otros",
+    val isMonthlyPayment: Boolean = false
 )
