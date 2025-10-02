@@ -11,6 +11,7 @@ fun NavGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Screen.Welcome.route) {
         composable(Screen.Welcome.route) { WelcomeScreen(navController) }
         composable(Screen.Login.route) { LoginScreen(navController) }
+        composable(Screen.Register.route) {RegisterScreen(navController) }
         composable(Screen.Home.route) { HomeScreen(navController) }
         composable(Screen.Transactions.route) { TransactionsScreen(navController) }
         composable(Screen.TransactionDetail.route) { backStackEntry ->

@@ -86,9 +86,8 @@ fun WelcomeScreen(navController: NavHostController) {
                 // Botón Registrarse (verde)
                 Button(
                     onClick = {
-                        // TODO: Navegar a pantalla de registro cuando esté implementada
-                        // Por ahora navega al Home
-                        navController.navigate(Screen.Home.route)
+
+                        navController.navigate(Screen.Register.route)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
