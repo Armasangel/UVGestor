@@ -6,5 +6,5 @@ data class Expense(
     val amount: Double,
     val timePeriod: String, // Diario, Semanal, Mensual, Anual
     val category: String, // Comida, Transporte, Ocio
-    val date: String // Formato: yyyy-MM-dd
+    val date: String
 )

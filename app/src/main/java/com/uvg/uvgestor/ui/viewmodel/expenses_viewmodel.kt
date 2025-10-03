@@ -8,19 +8,19 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class ExpensesViewModel : ViewModel() {
-    
+
     private val _expenses = MutableStateFlow<List<Expense>>(emptyList())
     val expenses: StateFlow<List<Expense>> = _expenses
-    
+
     init {
         // Datos de ejemplo para testing
         loadSampleData()
     }
-    
+
     private fun loadSampleData() {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val today = Date()
-        
+
         _expenses.value = listOf(
             Expense(
                 id = 4,
@@ -45,87 +45,6 @@ class ExpensesViewModel : ViewModel() {
                 timePeriod = "Mensual",
                 category = "Ocio",
                 date = dateFormat.format(Date(today.time - 10 * 24 * 60 * 60 * 1000))
-            )
-        )
-    }
-    
-    // Agregar un nuevo gasto
-    fun addExpense(expense: Expense) {
-        _expenses.value = _expenses.value + expense
-    }
-    
-    // Obtener gastos filtrados por período de tiempo
-    fun getExpensesByPeriod(period: String): List<Expense> {
-        val calendar = Calendar.getInstance()
-        val today = calendar.time
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        
-        return _expenses.value.filter { expense ->
-            val expenseDate = try {
-                dateFormat.parse(expense.date)
-            } catch (e: Exception) {
-                null
-            }
-            
-            when (period) {
-                "Diario" -> {
-                    // Gastos de hoy
-                    expense.date == dateFormat.format(today)
-                }
-                "Semanal" -> {
-                    // Gastos de esta semana
-                    if (expenseDate == null) return@filter false
-                    val daysDiff = ((today.time - expenseDate.time) / (1000 * 60 * 60 * 24)).toInt()
-                    daysDiff in 0..7
-                }
-                "Mensual" -> {
-                    // Gastos de este mes
-                    if (expenseDate == null) return@filter false
-                    val expenseCalendar = Calendar.getInstance()
-                    expenseCalendar.time = expenseDate
-                    expenseCalendar.get(Calendar.MONTH) == calendar.get(Calendar.MONTH) &&
-                    expenseCalendar.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
-                }
-                "Anual" -> {
-                    // Gastos de este año
-                    if (expenseDate == null) return@filter false
-                    val expenseCalendar = Calendar.getInstance()
-                    expenseCalendar.time = expenseDate
-                    expenseCalendar.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
-                }
-                else -> true
-            }
-        }
-    }
-    
-    // Obtener estadísticas por categoría
-    fun getCategoryStatistics(period: String): Map<String, Double> {
-        val filteredExpenses = getExpensesByPeriod(period)
-        return filteredExpenses.groupBy { it.category }
-            .mapValues { entry -> entry.value.sumOf { it.amount } }
-    }
-    
-    // Obtener el total de gastos por período
-    fun getTotalByPeriod(period: String): Double {
-        return getExpensesByPeriod(period).sumOf { it.amount }
-    }
-    
-    // Eliminar un gasto
-    fun deleteExpense(expenseId: Int) {
-        _expenses.value = _expenses.value.filter { it.id != expenseId }
-    }
-    
-    // Obtener un gasto por ID
-    fun getExpenseById(id: Int): Expense? {
-        return _expenses.value.find { it.id == id }
-    }
-}
-                id = 1,
-                title = "Café con amigos",
-                amount = 45.00,
-                timePeriod = "Diario",
-                category = "Comida",
-                date = dateFormat.format(today)
             ),
             Expense(
                 id = 2,
@@ -144,3 +63,84 @@ class ExpensesViewModel : ViewModel() {
                 date = dateFormat.format(Date(today.time - 2 * 24 * 60 * 60 * 1000))
             ),
             Expense(
+                id = 1,
+                title = "Café con amigos",
+                amount = 45.00,
+                timePeriod = "Diario",
+                category = "Comida",
+                date = dateFormat.format(today)
+            ),
+        )
+    }
+
+    // Agregar un nuevo gasto
+    fun addExpense(expense: Expense) {
+        _expenses.value = _expenses.value + expense
+    }
+
+    // Obtener gastos filtrados por período de tiempo
+    fun getExpensesByPeriod(period: String): List<Expense> {
+        val calendar = Calendar.getInstance()
+        val today = calendar.time
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+        return _expenses.value.filter { expense ->
+            val expenseDate = try {
+                dateFormat.parse(expense.date)
+            } catch (e: Exception) {
+                null
+            }
+
+            when (period) {
+                "Diario" -> {
+                    // Gastos de hoy
+                    expense.date == dateFormat.format(today)
+                }
+                "Semanal" -> {
+                    // Gastos de esta semana
+                    if (expenseDate == null) return@filter false
+                    val daysDiff = ((today.time - expenseDate.time) / (1000 * 60 * 60 * 24)).toInt()
+                    daysDiff in 0..7
+                }
+                "Mensual" -> {
+                    // Gastos de este mes
+                    if (expenseDate == null) return@filter false
+                    val expenseCalendar = Calendar.getInstance()
+                    expenseCalendar.time = expenseDate
+                    expenseCalendar.get(Calendar.MONTH) == calendar.get(Calendar.MONTH) &&
+                            expenseCalendar.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
+                }
+                "Anual" -> {
+                    // Gastos de este año
+                    if (expenseDate == null) return@filter false
+                    val expenseCalendar = Calendar.getInstance()
+                    expenseCalendar.time = expenseDate
+                    expenseCalendar.get(Calendar.YEAR) == calendar.get(Calendar.YEAR)
+                }
+                else -> true
+            }
+        }
+    }
+
+    // Obtener estadísticas por categoría
+    fun getCategoryStatistics(period: String): Map<String, Double> {
+        val filteredExpenses = getExpensesByPeriod(period)
+        return filteredExpenses.groupBy { it.category }
+            .mapValues { entry -> entry.value.sumOf { it.amount } }
+    }
+
+    // Obtener el total de gastos por período
+    fun getTotalByPeriod(period: String): Double {
+        return getExpensesByPeriod(period).sumOf { it.amount }
+    }
+
+    // Eliminar un gasto
+    fun deleteExpense(expenseId: Int) {
+        _expenses.value = _expenses.value.filter { it.id != expenseId }
+    }
+
+    // Obtener un gasto por ID
+    fun getExpenseById(id: Int): Expense? {
+        return _expenses.value.find { it.id == id }
+    }
+}
