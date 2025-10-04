@@ -14,6 +14,7 @@ fun NavGraph(navController: NavHostController) {
         composable(Screen.Register.route) {RegisterScreen(navController) }
         composable(Screen.Home.route) { HomeScreen(navController) }
         composable(Screen.Transactions.route) { TransactionsScreen(navController) }
+        composable(Screen.AddExpense.route) { AddExpenseScreen(navController) }
         composable(Screen.TransactionDetail.route) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("id")?.toIntOrNull() ?: 0
             TransactionDetailScreen(id, navController)
