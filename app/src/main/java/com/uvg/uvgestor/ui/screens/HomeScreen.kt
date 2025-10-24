@@ -17,24 +17,61 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.uvg.uvgestor.navigation.Screen
-import com.uvg.uvgestor.ui.viewmodel.ExpensesViewModel
+import com.uvg.uvgestor.presentation.viewmodel.home.HomeUiEvent
+import com.uvg.uvgestor.presentation.viewmodel.home.HomeViewModel
+import com.uvg.uvgestor.ui.data.Expense
+
+@Composable
+fun HomeScreen(
+    navController: NavHostController,
+    viewModel: HomeViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    HomeContent(
+        selectedPeriod = uiState.selectedPeriod,
+        expenses = uiState.expenses,
+        isLoading = uiState.isLoading,
+        error = uiState.error,
+        totalAmount = uiState.totalAmount,
+        expensesByCategory = uiState.expensesByCategory,
+        onPeriodChange = { viewModel.onEvent(HomeUiEvent.PeriodChanged(it)) },
+        onRetryClick = { viewModel.onEvent(HomeUiEvent.RetryLoad) },
+        onErrorDismiss = { viewModel.onEvent(HomeUiEvent.ErrorDismissed) },
+        onAddExpenseClick = { navController.navigate(Screen.AddExpense.route) },
+        onLogoutClick = {
+            navController.navigate(Screen.AUTH_GRAPH_ROUTE) {
+                popUpTo(Screen.MAIN_GRAPH_ROUTE) {
+                    inclusive = true
+                    saveState = false
+                }
+                launchSingleTop = true
+            }
+        }
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavHostController, vm: ExpensesViewModel = viewModel()) {
-    val expenses by vm.expenses.collectAsState()
-    var selectedTimePeriod by remember { mutableStateOf("Diario") }
-
+fun HomeContent(
+    selectedPeriod: String,
+    expenses: List<Expense>,
+    isLoading: Boolean,
+    error: String?,
+    totalAmount: Double,
+    expensesByCategory: Map<String, Double>,
+    onPeriodChange: (String) -> Unit,
+    onRetryClick: () -> Unit,
+    onErrorDismiss: () -> Unit,
+    onAddExpenseClick: () -> Unit,
+    onLogoutClick: () -> Unit
+) {
     val uvgGreen = Color(0xFF00C853)
     val backgroundColor = Color(0xFFF5F5F5)
-
-    // Calcular estadísticas según período seleccionado
-    val filteredExpenses = vm.getExpensesByPeriod(selectedTimePeriod)
-    val totalAmount = filteredExpenses.sumOf { it.amount }
-    val expensesByCategory = filteredExpenses.groupBy { it.category }
 
     Scaffold(
         topBar = {
@@ -47,14 +84,7 @@ fun HomeScreen(navController: NavHostController, vm: ExpensesViewModel = viewMod
                     )
                 },
                 actions = {
-                    // Botón de cerrar sesión
-                    IconButton(
-                        onClick = {
-                            navController.navigate(Screen.Welcome.route) {
-                                popUpTo(Screen.Home.route) { inclusive = true }
-                            }
-                        }
-                    ) {
+                    IconButton(onClick = onLogoutClick) {
                         Icon(
                             Icons.Default.ExitToApp,
                             contentDescription = "Cerrar Sesión",
@@ -69,7 +99,7 @@ fun HomeScreen(navController: NavHostController, vm: ExpensesViewModel = viewMod
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { navController.navigate(Screen.AddExpense.route) },
+                onClick = onAddExpenseClick,
                 containerColor = uvgGreen,
                 modifier = Modifier.size(64.dp)
             ) {
@@ -83,147 +113,206 @@ fun HomeScreen(navController: NavHostController, vm: ExpensesViewModel = viewMod
         },
         containerColor = backgroundColor
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
         ) {
-            // Selector de período de tiempo
-            TimePeriodSelector(
-                selectedPeriod = selectedTimePeriod,
-                onPeriodSelected = { selectedTimePeriod = it }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Card con gráfica y estadísticas
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "Resumen de Gastos - $selectedTimePeriod",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                TimePeriodSelector(
+                    selectedPeriod = selectedPeriod,
+                    onPeriodSelected = onPeriodChange,
+                    enabled = !isLoading
+                )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    Row(
+                if (isLoading) {
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
                     ) {
-                        // Gráfica (área izquierda)
                         Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(200.dp),
+                                .fillMaxWidth()
+                                .height(300.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            ExpenseChart(
-                                expenses = filteredExpenses,
-                                totalAmount = totalAmount
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        // Estadísticas por categoría (área derecha)
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            expensesByCategory.forEach { (category, expensesList) ->
-                                val categoryTotal = expensesList.sumOf { it.amount }
-                                val percentage = if (totalAmount > 0) {
-                                    (categoryTotal / totalAmount * 100).toInt()
-                                } else 0
-
-                                CategoryStatItem(
-                                    category = category,
-                                    amount = categoryTotal,
-                                    percentage = percentage
-                                )
-                            }
-
-                            if (expensesByCategory.isEmpty()) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                CircularProgressIndicator(color = uvgGreen)
                                 Text(
-                                    "Sin gastos registrados",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    "Cargando gastos...",
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = Color.Gray
                                 )
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Total
-                    Divider()
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
+                } else {
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
-                        Text(
-                            "Total:",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        )
-                        Text(
-                            "Q${String.format("%.2f", totalAmount)}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = uvgGreen
-                        )
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Resumen de Gastos - $selectedPeriod",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(200.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    ExpenseChart(
+                                        totalAmount = totalAmount
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(16.dp))
+
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    expensesByCategory.forEach { (category, amount) ->
+                                        val percentage = if (totalAmount > 0) {
+                                            (amount / totalAmount * 100).toInt()
+                                        } else 0
+
+                                        CategoryStatItem(
+                                            category = category,
+                                            amount = amount,
+                                            percentage = percentage
+                                        )
+                                    }
+
+                                    if (expensesByCategory.isEmpty()) {
+                                        Text(
+                                            "Sin gastos registrados",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color.Gray
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Divider()
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Total:",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                )
+                                Text(
+                                    "Q${String.format("%.2f", totalAmount)}",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = uvgGreen
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Text(
+                        text = "Gastos Recientes",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (expenses.isEmpty()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No hay gastos registrados",
+                                    color = Color.Gray,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    } else {
+                        expenses.takeLast(5).reversed().forEach { expense ->
+                            ExpenseListItem(expense)
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(80.dp))
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Lista de gastos recientes
-            Text(
-                text = "Gastos Recientes",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (filteredExpenses.isEmpty()) {
+            error?.let {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFFFFEBEE)
+                    )
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
+                    Column(
+                        modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            "No hay gastos registrados",
-                            color = Color.Gray,
+                            it,
+                            color = Color(0xFFD32F2F),
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(onClick = onErrorDismiss) {
+                                Text("Cerrar")
+                            }
+                            TextButton(onClick = onRetryClick) {
+                                Text("Reintentar")
+                            }
+                        }
                     }
                 }
-            } else {
-                filteredExpenses.takeLast(5).reversed().forEach { expense ->
-                    ExpenseListItem(expense)
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
             }
-
-            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
@@ -231,7 +320,8 @@ fun HomeScreen(navController: NavHostController, vm: ExpensesViewModel = viewMod
 @Composable
 fun TimePeriodSelector(
     selectedPeriod: String,
-    onPeriodSelected: (String) -> Unit
+    onPeriodSelected: (String) -> Unit,
+    enabled: Boolean = true
 ) {
     val periods = listOf("Diario", "Semanal", "Mensual", "Anual")
 
@@ -251,6 +341,7 @@ fun TimePeriodSelector(
                     )
                 },
                 modifier = Modifier.weight(1f),
+                enabled = enabled,
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = Color(0xFF00C853),
                     selectedLabelColor = Color.White,
@@ -262,19 +353,11 @@ fun TimePeriodSelector(
 }
 
 @Composable
-fun ExpenseChart(expenses: List<com.uvg.uvgestor.ui.data.Expense>, totalAmount: Double) {
-    val categories = expenses.groupBy { it.category }
-    val colors = mapOf(
-        "Comida" to Color(0xFFFF6B6B),
-        "Transporte" to Color(0xFF4ECDC4),
-        "Ocio" to Color(0xFFFFD93D)
-    )
-
+fun ExpenseChart(totalAmount: Double) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        // Gráfica circular simple
         Box(
             modifier = Modifier
                 .size(150.dp)
@@ -341,7 +424,7 @@ fun CategoryStatItem(category: String, amount: Double, percentage: Int) {
 }
 
 @Composable
-fun ExpenseListItem(expense: com.uvg.uvgestor.ui.data.Expense) {
+fun ExpenseListItem(expense: Expense) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),

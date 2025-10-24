@@ -1,6 +1,5 @@
 package com.uvg.uvgestor.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,29 +16,63 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.uvg.uvgestor.ui.data.Expense
-import com.uvg.uvgestor.ui.viewmodel.ExpensesViewModel
-import java.text.SimpleDateFormat
-import java.util.*
+import com.uvg.uvgestor.presentation.viewmodel.expense.AddExpenseUiEvent
+import com.uvg.uvgestor.presentation.viewmodel.expense.AddExpenseViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseScreen(
     navController: NavHostController,
-    vm: ExpensesViewModel = viewModel()
+    viewModel: AddExpenseViewModel = viewModel()
 ) {
-    var title by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    var selectedTimePeriod by remember { mutableStateOf("Diario") }
-    var selectedCategory by remember { mutableStateOf("Comida") }
-    var showError by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
-    
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(uiState.saveSuccess) {
+        if (uiState.saveSuccess) {
+            viewModel.onEvent(AddExpenseUiEvent.SaveSuccessHandled)
+            navController.popBackStack()
+        }
+    }
+
+    AddExpenseContent(
+        title = uiState.title,
+        amount = uiState.amount,
+        selectedTimePeriod = uiState.selectedTimePeriod,
+        selectedCategory = uiState.selectedCategory,
+        isLoading = uiState.isLoading,
+        error = uiState.error,
+        onTitleChange = { viewModel.onEvent(AddExpenseUiEvent.TitleChanged(it)) },
+        onAmountChange = { viewModel.onEvent(AddExpenseUiEvent.AmountChanged(it)) },
+        onTimePeriodChange = { viewModel.onEvent(AddExpenseUiEvent.TimePeriodChanged(it)) },
+        onCategoryChange = { viewModel.onEvent(AddExpenseUiEvent.CategoryChanged(it)) },
+        onSaveClick = { viewModel.onEvent(AddExpenseUiEvent.SaveClicked) },
+        onErrorDismiss = { viewModel.onEvent(AddExpenseUiEvent.ErrorDismissed) },
+        onBackClick = { navController.popBackStack() }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddExpenseContent(
+    title: String,
+    amount: String,
+    selectedTimePeriod: String,
+    selectedCategory: String,
+    isLoading: Boolean,
+    error: String?,
+    onTitleChange: (String) -> Unit,
+    onAmountChange: (String) -> Unit,
+    onTimePeriodChange: (String) -> Unit,
+    onCategoryChange: (String) -> Unit,
+    onSaveClick: () -> Unit,
+    onErrorDismiss: () -> Unit,
+    onBackClick: () -> Unit
+) {
     val uvgGreen = Color(0xFF00C853)
     val backgroundColor = Color(0xFFF5F5F5)
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -50,7 +83,7 @@ fun AddExpenseScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBackClick, enabled = !isLoading) {
                         Icon(
                             Icons.Default.ArrowBack,
                             contentDescription = "Volver"
@@ -66,240 +99,230 @@ fun AddExpenseScreen(
         },
         containerColor = backgroundColor
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Card principal del formulario
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                shape = RoundedCornerShape(16.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    // Parámetro 1: Título del gasto
-                    Column {
-                        Text(
-                            "Título del Gasto",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF333333)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = title,
-                            onValueChange = { title = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Ej: Almuerzo en cafetería") },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = uvgGreen,
-                                unfocusedBorderColor = Color(0xFFE0E0E0),
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                cursorColor = uvgGreen
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            singleLine = true
-                        )
-                    }
-                    
-                    // Parámetro 2: Monto del gasto
-                    Column {
-                        Text(
-                            "Monto del Gasto",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF333333)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = amount,
-                            onValueChange = { newValue ->
-                                // Solo permitir números y punto decimal
-                                if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*$"))) {
-                                    amount = newValue
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        Column {
+                            Text(
+                                "Título del Gasto",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF333333)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = title,
+                                onValueChange = onTitleChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("Ej: Almuerzo en cafetería") },
+                                enabled = !isLoading,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = uvgGreen,
+                                    unfocusedBorderColor = Color(0xFFE0E0E0),
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White,
+                                    cursorColor = uvgGreen
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
+                            )
+                        }
+
+                        Column {
+                            Text(
+                                "Monto del Gasto",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF333333)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = amount,
+                                onValueChange = { newValue ->
+                                    if (newValue.isEmpty() || newValue.matches(Regex("^\\d*\\.?\\d*$"))) {
+                                        onAmountChange(newValue)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("0.00") },
+                                enabled = !isLoading,
+                                leadingIcon = {
+                                    Text(
+                                        "Q",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF666666),
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = uvgGreen,
+                                    unfocusedBorderColor = Color(0xFFE0E0E0),
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White,
+                                    cursorColor = uvgGreen
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Decimal
+                                ),
+                                singleLine = true
+                            )
+                        }
+
+                        Divider(color = Color(0xFFE0E0E0))
+
+                        Column {
+                            Text(
+                                "Período de Tiempo",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF333333)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            val timePeriods = listOf("Diario", "Semanal", "Mensual", "Anual")
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                timePeriods.forEach { period ->
+                                    TimePeriodOption(
+                                        period = period,
+                                        selected = selectedTimePeriod == period,
+                                        onSelect = { onTimePeriodChange(period) },
+                                        color = uvgGreen,
+                                        enabled = !isLoading
+                                    )
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("0.00") },
-                            leadingIcon = {
-                                Text(
-                                    "Q",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF666666),
-                                    modifier = Modifier.padding(start = 8.dp)
-                                )
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = uvgGreen,
-                                unfocusedBorderColor = Color(0xFFE0E0E0),
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                cursorColor = uvgGreen
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Decimal
-                            ),
-                            singleLine = true
-                        )
-                    }
-                    
-                    Divider(color = Color(0xFFE0E0E0))
-                    
-                    // Parámetro 3: Período de tiempo
-                    Column {
-                        Text(
-                            "Período de Tiempo",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF333333)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        val timePeriods = listOf("Diario", "Semanal", "Mensual", "Anual")
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            timePeriods.forEach { period ->
-                                TimePeriodOption(
-                                    period = period,
-                                    selected = selectedTimePeriod == period,
-                                    onSelect = { selectedTimePeriod = period },
-                                    color = uvgGreen
-                                )
                             }
                         }
-                    }
-                    
-                    Divider(color = Color(0xFFE0E0E0))
-                    
-                    // Parámetro 4: Categoría
-                    Column {
-                        Text(
-                            "Categoría del Gasto",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF333333)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        val categories = listOf(
-                            "Comida" to "🍔",
-                            "Transporte" to "🚗",
-                            "Ocio" to "🎮"
-                        )
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            categories.forEach { (category, emoji) ->
-                                CategoryOption(
-                                    category = category,
-                                    emoji = emoji,
-                                    selected = selectedCategory == category,
-                                    onSelect = { selectedCategory = category },
-                                    modifier = Modifier.weight(1f)
-                                )
+
+                        Divider(color = Color(0xFFE0E0E0))
+
+                        Column {
+                            Text(
+                                "Categoría del Gasto",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF333333)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            val categories = listOf(
+                                "Comida" to "🍔",
+                                "Transporte" to "🚗",
+                                "Ocio" to "🎮"
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                categories.forEach { (category, emoji) ->
+                                    CategoryOption(
+                                        category = category,
+                                        emoji = emoji,
+                                        selected = selectedCategory == category,
+                                        onSelect = { onCategoryChange(category) },
+                                        modifier = Modifier.weight(1f),
+                                        enabled = !isLoading
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
-            
-            // Mensaje de error
-            if (showError) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFFEBEE)
+
+                if (error != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFFEBEE)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                error,
+                                modifier = Modifier.weight(1f),
+                                color = Color(0xFFD32F2F),
+                                fontSize = 14.sp
+                            )
+                            TextButton(onClick = onErrorDismiss) {
+                                Text("OK")
+                            }
+                        }
+                    }
+                }
+
+                Button(
+                    onClick = onSaveClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    enabled = !isLoading,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = uvgGreen
                     ),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White
+                        )
+                    } else {
+                        Text(
+                            "Guardar Gasto",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    enabled = !isLoading,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFF666666)
+                    )
                 ) {
                     Text(
-                        errorMessage,
-                        modifier = Modifier.padding(12.dp),
-                        color = Color(0xFFD32F2F),
-                        fontSize = 14.sp
+                        "Cancelar",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
+
+                Spacer(modifier = Modifier.height(32.dp))
             }
-            
-            // Botón guardar
-            Button(
-                onClick = {
-                    // Validación
-                    when {
-                        title.isBlank() -> {
-                            showError = true
-                            errorMessage = "Por favor ingresa un título para el gasto"
-                        }
-                        amount.isBlank() || amount.toDoubleOrNull() == null || amount.toDouble() <= 0 -> {
-                            showError = true
-                            errorMessage = "Por favor ingresa un monto válido"
-                        }
-                        else -> {
-                            // Crear el gasto
-                            val newExpense = Expense(
-                                id = System.currentTimeMillis().toInt(),
-                                title = title,
-                                amount = amount.toDouble(),
-                                timePeriod = selectedTimePeriod,
-                                category = selectedCategory,
-                                date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                                    .format(Date())
-                            )
-                            
-                            // Agregar al ViewModel
-                            vm.addExpense(newExpense)
-                            
-                            // Navegar de regreso
-                            navController.popBackStack()
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = uvgGreen
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    "Guardar Gasto",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-            
-            // Botón cancelar
-            OutlinedButton(
-                onClick = { navController.popBackStack() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF666666)
-                )
-            ) {
-                Text(
-                    "Cancelar",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -309,13 +332,15 @@ fun TimePeriodOption(
     period: String,
     selected: Boolean,
     onSelect: () -> Unit,
-    color: Color
+    color: Color,
+    enabled: Boolean = true
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
         onClick = onSelect,
+        enabled = enabled,
         colors = CardDefaults.cardColors(
             containerColor = if (selected) color.copy(alpha = 0.1f) else Color.White
         ),
@@ -339,10 +364,11 @@ fun TimePeriodOption(
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                 color = if (selected) color else Color(0xFF333333)
             )
-            
+
             RadioButton(
                 selected = selected,
                 onClick = onSelect,
+                enabled = enabled,
                 colors = RadioButtonDefaults.colors(
                     selectedColor = color,
                     unselectedColor = Color(0xFFBDBDBD)
@@ -358,7 +384,8 @@ fun CategoryOption(
     emoji: String,
     selected: Boolean,
     onSelect: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     val categoryColor = when (category) {
         "Comida" -> Color(0xFFFF6B6B)
@@ -366,10 +393,11 @@ fun CategoryOption(
         "Ocio" -> Color(0xFFFFD93D)
         else -> Color.Gray
     }
-    
+
     Card(
         modifier = modifier.height(100.dp),
         onClick = onSelect,
+        enabled = enabled,
         colors = CardDefaults.cardColors(
             containerColor = if (selected) categoryColor.copy(alpha = 0.15f) else Color.White
         ),
