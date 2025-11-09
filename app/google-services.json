@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "928830759959",
+    "project_id": "uvgestor",
+    "storage_bucket": "uvgestor.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:928830759959:android:8f481dc3b54a09f863a852",
+        "android_client_info": {
+          "package_name": "com.uvg.uvgestor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnZTDZpGYtgTm-lZ3wFmiqDjYf39JgLgg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
