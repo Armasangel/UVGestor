@@ -1,6 +1,7 @@
 package com.uvg.uvgestor.presentation.viewmodel.auth
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.uvg.uvgestor.data.repository.AuthRepository
 import com.uvg.uvgestor.domain.model.NetworkResult
@@ -26,12 +27,10 @@ sealed class LoginUiEvent {
     object LoginSuccessHandled : LoginUiEvent()
 }
 
-class LoginViewModel(
-    private val authRepository: AuthRepository = AuthRepository()
-) : ViewModel() {
+class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val authRepository = AuthRepository(application.applicationContext)
     private val _uiState = MutableStateFlow(LoginUiState())
-
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     fun onEvent(event: LoginUiEvent) {
