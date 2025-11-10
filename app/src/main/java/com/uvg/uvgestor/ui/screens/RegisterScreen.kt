@@ -1,7 +1,7 @@
-
 package com.uvg.uvgestor.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -54,13 +54,19 @@ fun RegisterScreen(
         name = uiState.name,
         email = uiState.email,
         password = uiState.password,
-        confirmPassword = uiState.confirmPassword,
         isLoading = uiState.isLoading,
         error = uiState.error,
+        requiresGuardian = uiState.requiresGuardian,
+        guardianName = uiState.guardianName,
+        guardianEmail = uiState.guardianEmail,
+        guardianRelationship = uiState.guardianRelationship,
         onNameChange = { viewModel.onEvent(RegisterUiEvent.NameChanged(it)) },
         onEmailChange = { viewModel.onEvent(RegisterUiEvent.EmailChanged(it)) },
         onPasswordChange = { viewModel.onEvent(RegisterUiEvent.PasswordChanged(it)) },
-        onConfirmPasswordChange = { viewModel.onEvent(RegisterUiEvent.ConfirmPasswordChanged(it)) },
+        onRequiresGuardianChange = { viewModel.onEvent(RegisterUiEvent.RequiresGuardianChanged(it)) },
+        onGuardianNameChange = { viewModel.onEvent(RegisterUiEvent.GuardianNameChanged(it)) },
+        onGuardianEmailChange = { viewModel.onEvent(RegisterUiEvent.GuardianEmailChanged(it)) },
+        onGuardianRelationshipChange = { viewModel.onEvent(RegisterUiEvent.GuardianRelationshipChanged(it)) },
         onRegisterClick = { viewModel.onEvent(RegisterUiEvent.RegisterClicked) },
         onErrorDismiss = { viewModel.onEvent(RegisterUiEvent.ErrorDismissed) },
         onBackClick = { navController.popBackStack() },
@@ -77,20 +83,25 @@ fun RegisterContent(
     name: String,
     email: String,
     password: String,
-    confirmPassword: String,
     isLoading: Boolean,
     error: String?,
+    requiresGuardian: Boolean,
+    guardianName: String,
+    guardianEmail: String,
+    guardianRelationship: String,
     onNameChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
-    onConfirmPasswordChange: (String) -> Unit,
+    onRequiresGuardianChange: (Boolean) -> Unit,
+    onGuardianNameChange: (String) -> Unit,
+    onGuardianEmailChange: (String) -> Unit,
+    onGuardianRelationshipChange: (String) -> Unit,
     onRegisterClick: () -> Unit,
     onErrorDismiss: () -> Unit,
     onBackClick: () -> Unit,
     onLoginClick: () -> Unit
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
-    var confirmPasswordVisible by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -138,6 +149,7 @@ fun RegisterContent(
             ) {
                 Spacer(modifier = Modifier.height(40.dp))
 
+                // Logo
                 Box(
                     modifier = Modifier
                         .size(100.dp)
@@ -157,6 +169,7 @@ fun RegisterContent(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Título
                 Text(
                     text = "Bienvenido",
                     fontSize = 24.sp,
@@ -176,6 +189,7 @@ fun RegisterContent(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
+                // Campo Nombre
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Nombre completo",
@@ -200,6 +214,7 @@ fun RegisterContent(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                // Campo Email
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Correo electrónico",
@@ -225,6 +240,7 @@ fun RegisterContent(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                // Campo Contraseña (sin confirmación)
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Contraseña",
@@ -235,7 +251,7 @@ fun RegisterContent(
                     OutlinedTextField(
                         value = password,
                         onValueChange = onPasswordChange,
-                        placeholder = { Text("Tu contraseña", color = Color(0xFFBDBDBD)) },
+                        placeholder = { Text("Mínimo 6 caracteres", color = Color(0xFFBDBDBD)) },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
                         visualTransformation = if (passwordVisible)
@@ -245,7 +261,7 @@ fun RegisterContent(
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Text(
-                                    text = if (passwordVisible) "👁️" else "👁️",
+                                    text = if (passwordVisible) "👁️" else "👁️‍🗨️",
                                     fontSize = 20.sp,
                                     color = Color(0xFF9E9E9E)
                                 )
@@ -259,48 +275,197 @@ fun RegisterContent(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         singleLine = true
                     )
-                }
 
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Confirmar contraseña",
-                        fontSize = 14.sp,
-                        color = Color(0xFF9E9E9E),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    OutlinedTextField(
-                        value = confirmPassword,
-                        onValueChange = onConfirmPasswordChange,
-                        placeholder = { Text("Confirma tu contraseña", color = Color(0xFFBDBDBD)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isLoading,
-                        visualTransformation = if (confirmPasswordVisible)
-                            VisualTransformation.None
-                        else
-                            PasswordVisualTransformation(),
-                        trailingIcon = {
-                            IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
-                                Text(
-                                    text = if (confirmPasswordVisible) "👁️" else "👁️",
-                                    fontSize = 20.sp,
-                                    color = Color(0xFF9E9E9E)
-                                )
+                    // Indicador de fortaleza de contraseña
+                    if (password.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val strength = when {
+                                password.length < 6 -> "Débil"
+                                password.length < 8 -> "Media"
+                                else -> "Fuerte"
                             }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor = Color(0xFFE0E0E0),
-                            focusedBorderColor = Color(0xFF00C853)
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        singleLine = true
-                    )
+                            val strengthColor = when {
+                                password.length < 6 -> Color(0xFFFF5252)
+                                password.length < 8 -> Color(0xFFFFC107)
+                                else -> Color(0xFF4CAF50)
+                            }
+
+                            Text(
+                                text = "Seguridad: ",
+                                fontSize = 12.sp,
+                                color = Color(0xFF666666)
+                            )
+                            Text(
+                                text = strength,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = strengthColor
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                HorizontalDivider(color = Color(0xFFE0E0E0))
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Checkbox para registrar tutor
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isLoading) {
+                            onRequiresGuardianChange(!requiresGuardian)
+                        }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = requiresGuardian,
+                        onCheckedChange = onRequiresGuardianChange,
+                        enabled = !isLoading,
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Color(0xFF00C853),
+                            uncheckedColor = Color(0xFFBDBDBD)
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "Registrar tutor/padre",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF1F1F1F)
+                        )
+                        Text(
+                            text = "Para estudiantes menores de edad",
+                            fontSize = 12.sp,
+                            color = Color(0xFF9E9E9E)
+                        )
+                    }
+                }
+
+                // Campos del tutor (si está marcado)
+                if (requiresGuardian) {
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFF5F9FF)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Información del Tutor",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F1F1F)
+                            )
+
+                            Text(
+                                text = "El tutor tendrá acceso a tu información financiera",
+                                fontSize = 12.sp,
+                                color = Color(0xFF666666),
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Campo Nombre del Tutor
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "Nombre del tutor *",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF666666),
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                                OutlinedTextField(
+                                    value = guardianName,
+                                    onValueChange = onGuardianNameChange,
+                                    placeholder = { Text("Nombre completo", color = Color(0xFFBDBDBD)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !isLoading,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                                        focusedBorderColor = Color(0xFF00C853),
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    singleLine = true
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Campo Email del Tutor
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "Correo del tutor *",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF666666),
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                                OutlinedTextField(
+                                    value = guardianEmail,
+                                    onValueChange = onGuardianEmailChange,
+                                    placeholder = { Text("tutor@email.com", color = Color(0xFFBDBDBD)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !isLoading,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        unfocusedBorderColor = Color(0xFFE0E0E0),
+                                        focusedBorderColor = Color(0xFF00C853),
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                    singleLine = true
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Selector de Relación
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "Relación *",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF666666),
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+
+                                val relationships = listOf("Padre", "Madre", "Tutor Legal")
+
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    relationships.forEach { relationship ->
+                                        GuardianRelationshipOption(
+                                            relationship = relationship,
+                                            selected = guardianRelationship == relationship,
+                                            onSelect = { onGuardianRelationshipChange(relationship) },
+                                            enabled = !isLoading
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Botón Registrarse
                 Button(
                     onClick = onRegisterClick,
                     modifier = Modifier
@@ -329,6 +494,7 @@ fun RegisterContent(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Divisor
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -350,6 +516,7 @@ fun RegisterContent(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Link a Login
                 Row(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
@@ -376,6 +543,7 @@ fun RegisterContent(
                 Spacer(modifier = Modifier.height(40.dp))
             }
 
+            // Snackbar de error
             error?.let {
                 Snackbar(
                     modifier = Modifier
@@ -390,6 +558,56 @@ fun RegisterContent(
                     Text(it)
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun GuardianRelationshipOption(
+    relationship: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    enabled: Boolean = true
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        onClick = onSelect,
+        enabled = enabled,
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) Color(0xFF00C853).copy(alpha = 0.1f) else Color.White
+        ),
+        border = if (selected) {
+            androidx.compose.foundation.BorderStroke(2.dp, Color(0xFF00C853))
+        } else {
+            androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0))
+        },
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                relationship,
+                fontSize = 16.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                color = if (selected) Color(0xFF00C853) else Color(0xFF333333)
+            )
+
+            RadioButton(
+                selected = selected,
+                onClick = onSelect,
+                enabled = enabled,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = Color(0xFF00C853),
+                    unselectedColor = Color(0xFFBDBDBD)
+                )
+            )
         }
     }
 }

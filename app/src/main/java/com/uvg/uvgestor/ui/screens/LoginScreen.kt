@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
@@ -38,7 +39,7 @@ fun LoginScreen(
     LaunchedEffect(uiState.loginSuccess) {
         uiState.loginSuccess?.let {
             viewModel.onEvent(LoginUiEvent.LoginSuccessHandled)
-            navController.navigate(Screen.MAIN_GRAPH_ROUTE) {
+            navController.navigate(Screen.Home.route) {
                 popUpTo(Screen.AUTH_GRAPH_ROUTE) {
                     inclusive = true
                     saveState = false
@@ -92,7 +93,7 @@ fun LoginContent(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Filled.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver"
                         )
                     }
