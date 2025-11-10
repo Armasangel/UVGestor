@@ -1,7 +1,10 @@
 package com.uvg.uvgestor.presentation.viewmodel.home
 
-import androidx.lifecycle.ViewModel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.uvg.uvgestor.data.repository.AuthRepository
 import com.uvg.uvgestor.data.repository.ExpenseRepository
 import com.uvg.uvgestor.domain.model.NetworkResult
 import com.uvg.uvgestor.ui.data.Expense
@@ -16,7 +19,8 @@ data class HomeUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val totalAmount: Double = 0.0,
-    val expensesByCategory: Map<String, Double> = emptyMap()
+    val expensesByCategory: Map<String, Double> = emptyMap(),
+    val currentUserId: String? = null
 )
 
 sealed class HomeUiEvent {
@@ -26,17 +30,35 @@ sealed class HomeUiEvent {
     object ErrorDismissed : HomeUiEvent()
 }
 
-class HomeViewModel(
-    private val expenseRepository: ExpenseRepository = ExpenseRepository()
-) : ViewModel() {
+class HomeViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val expenseRepository = ExpenseRepository(application.applicationContext)
+    private val authRepository = AuthRepository(application.applicationContext)
 
     private val _uiState = MutableStateFlow(HomeUiState())
-
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     init {
-        // Load expenses when ViewModel is created
+        loadCurrentUser()
         loadExpenses()
+    }
+
+    private fun loadCurrentUser() {
+        viewModelScope.launch {
+            val currentUser = authRepository.getCurrentUser()
+            _uiState.value = _uiState.value.copy(currentUserId = currentUser?.id)
+            if (currentUser != null) {
+                observeExpenses(currentUser.id)
+            }
+        }
+    }
+
+    private fun observeExpenses(userId: String) {
+        viewModelScope.launch {
+            expenseRepository.getExpensesFlow(userId).collect { expenses ->
+                calculateStatistics(expenses)
+            }
+        }
     }
 
     fun onEvent(event: HomeUiEvent) {
@@ -60,8 +82,10 @@ class HomeViewModel(
     }
 
     private fun loadExpenses() {
+        val userId = _uiState.value.currentUserId ?: return
+
         viewModelScope.launch {
-            expenseRepository.getExpenses().collect { result ->
+            expenseRepository.getExpenses(userId).collect { result ->
                 when (result) {
                     is NetworkResult.Loading -> {
                         _uiState.value = _uiState.value.copy(
@@ -84,8 +108,10 @@ class HomeViewModel(
     }
 
     private fun loadExpensesByPeriod(period: String) {
+        val userId = _uiState.value.currentUserId ?: return
+
         viewModelScope.launch {
-            expenseRepository.getExpensesByPeriod(period).collect { result ->
+            expenseRepository.getExpensesByPeriod(userId, period).collect { result ->
                 when (result) {
                     is NetworkResult.Loading -> {
                         _uiState.value = _uiState.value.copy(

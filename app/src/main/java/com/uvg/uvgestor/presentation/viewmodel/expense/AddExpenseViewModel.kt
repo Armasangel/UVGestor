@@ -1,7 +1,9 @@
 package com.uvg.uvgestor.presentation.viewmodel.expense
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.uvg.uvgestor.data.repository.AuthRepository
 import com.uvg.uvgestor.data.repository.ExpenseRepository
 import com.uvg.uvgestor.domain.model.NetworkResult
 import com.uvg.uvgestor.ui.data.Expense
@@ -15,11 +17,13 @@ import java.util.*
 data class AddExpenseUiState(
     val title: String = "",
     val amount: String = "",
-    val selectedTimePeriod: String = "Diario",
-    val selectedCategory: String = "Comida",
+    val selectedTimePeriod: String = "",
+    val selectedCategory: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
-    val saveSuccess: Boolean = false
+    val saveSuccess: Boolean = false,
+    val showConfirmationDialog: Boolean = false,
+    val currentUserId: String? = null
 )
 
 sealed class AddExpenseUiEvent {
@@ -28,16 +32,30 @@ sealed class AddExpenseUiEvent {
     data class TimePeriodChanged(val period: String) : AddExpenseUiEvent()
     data class CategoryChanged(val category: String) : AddExpenseUiEvent()
     object SaveClicked : AddExpenseUiEvent()
+    object ConfirmSave : AddExpenseUiEvent()
+    object CancelSave : AddExpenseUiEvent()
     object ErrorDismissed : AddExpenseUiEvent()
     object SaveSuccessHandled : AddExpenseUiEvent()
 }
 
-class AddExpenseViewModel(
-    private val expenseRepository: ExpenseRepository = ExpenseRepository()
-) : ViewModel() {
+class AddExpenseViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val expenseRepository = ExpenseRepository(application.applicationContext)
+    private val authRepository = AuthRepository(application.applicationContext)
 
     private val _uiState = MutableStateFlow(AddExpenseUiState())
     val uiState: StateFlow<AddExpenseUiState> = _uiState.asStateFlow()
+
+    init {
+        loadCurrentUser()
+    }
+
+    private fun loadCurrentUser() {
+        viewModelScope.launch {
+            val currentUser = authRepository.getCurrentUser()
+            _uiState.value = _uiState.value.copy(currentUserId = currentUser?.id)
+        }
+    }
 
     fun onEvent(event: AddExpenseUiEvent) {
         when (event) {
@@ -64,7 +82,14 @@ class AddExpenseViewModel(
                 )
             }
             AddExpenseUiEvent.SaveClicked -> {
+                validateAndShowConfirmation()
+            }
+            AddExpenseUiEvent.ConfirmSave -> {
+                _uiState.value = _uiState.value.copy(showConfirmationDialog = false)
                 saveExpense()
+            }
+            AddExpenseUiEvent.CancelSave -> {
+                _uiState.value = _uiState.value.copy(showConfirmationDialog = false)
             }
             AddExpenseUiEvent.ErrorDismissed -> {
                 _uiState.value = _uiState.value.copy(error = null)
@@ -75,7 +100,7 @@ class AddExpenseViewModel(
         }
     }
 
-    private fun saveExpense() {
+    private fun validateAndShowConfirmation() {
         val currentState = _uiState.value
 
         when {
@@ -97,10 +122,36 @@ class AddExpenseViewModel(
                 )
                 return
             }
+            currentState.selectedTimePeriod.isBlank() -> {
+                _uiState.value = currentState.copy(
+                    error = "Por favor selecciona un período de tiempo"
+                )
+                return
+            }
+            currentState.selectedCategory.isBlank() -> {
+                _uiState.value = currentState.copy(
+                    error = "Por favor selecciona una categoría"
+                )
+                return
+            }
+        }
+
+        _uiState.value = currentState.copy(showConfirmationDialog = true)
+    }
+
+    private fun saveExpense() {
+        val currentState = _uiState.value
+        val userId = currentState.currentUserId
+
+        if (userId == null) {
+            _uiState.value = currentState.copy(
+                error = "Error: Usuario no autenticado"
+            )
+            return
         }
 
         val expense = Expense(
-            id = 0, // Will be assigned by repository
+            id = 0,
             title = currentState.title,
             amount = currentState.amount.toDouble(),
             timePeriod = currentState.selectedTimePeriod,
@@ -109,7 +160,7 @@ class AddExpenseViewModel(
         )
 
         viewModelScope.launch {
-            expenseRepository.addExpense(expense).collect { result ->
+            expenseRepository.addExpense(expense, userId).collect { result ->
                 when (result) {
                     is NetworkResult.Loading -> {
                         _uiState.value = currentState.copy(
@@ -119,7 +170,8 @@ class AddExpenseViewModel(
                     }
                     is NetworkResult.Success -> {
                         _uiState.value = AddExpenseUiState(
-                            saveSuccess = true
+                            saveSuccess = true,
+                            currentUserId = userId
                         )
                     }
                     is NetworkResult.Error -> {
