@@ -36,6 +36,122 @@ fun AddExpenseScreen(
         }
     }
 
+    // Diálogo de confirmación - ESTO ES LO QUE FALTABA
+    if (uiState.showConfirmationDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onEvent(AddExpenseUiEvent.CancelSave) },
+            title = {
+                Text(
+                    text = "Confirmar Gasto",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "¿Deseas guardar este gasto?",
+                        fontSize = 16.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFF5F5F5)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Título:",
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    uiState.title,
+                                    fontSize = 14.sp
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Monto:",
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    "Q${uiState.amount}",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF00C853),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Categoría:",
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    uiState.selectedCategory,
+                                    fontSize = 14.sp
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Período:",
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    uiState.selectedTimePeriod,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.onEvent(AddExpenseUiEvent.ConfirmSave) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF00C853)
+                    )
+                ) {
+                    Text("Guardar", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.onEvent(AddExpenseUiEvent.CancelSave) }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     AddExpenseContent(
         title = uiState.title,
         amount = uiState.amount,
@@ -429,3 +545,4 @@ fun CategoryOption(
         }
     }
 }
+
