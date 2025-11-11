@@ -3,21 +3,17 @@ package com.uvg.uvgestor.navigation
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import com.uvg.uvgestor.ui.screens.*
+
 
 @Composable
 fun NavGraph(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = Screen.Welcome.route) {
-        composable(Screen.Welcome.route) { WelcomeScreen(navController) }
-        composable(Screen.Login.route) { LoginScreen(navController) }
-        composable(Screen.Register.route) {RegisterScreen(navController) }
-        composable(Screen.Home.route) { HomeScreen(navController) }
-        composable(Screen.Transactions.route) { TransactionsScreen(navController) }
-        composable(Screen.AddExpense.route) { AddExpenseScreen(navController) }
-        composable(Screen.TransactionDetail.route) { backStackEntry ->
-            val id = backStackEntry.arguments?.getString("id")?.toIntOrNull() ?: 0
-            TransactionDetailScreen(id, navController)
-        }
+    NavHost(
+        navController = navController,
+        startDestination = Screen.AUTH_GRAPH_ROUTE
+    ) {
+
+        authGraph(navController)
+
+        mainGraph(navController)
     }
 }

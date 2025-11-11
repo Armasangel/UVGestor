@@ -149,7 +149,6 @@ fun RegisterContent(
             ) {
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // Logo
                 Box(
                     modifier = Modifier
                         .size(100.dp)
@@ -169,7 +168,6 @@ fun RegisterContent(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Título
                 Text(
                     text = "Bienvenido",
                     fontSize = 24.sp,
@@ -240,7 +238,7 @@ fun RegisterContent(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Campo Contraseña (sin confirmación)
+                // Campo Contraseña
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Contraseña",
@@ -251,7 +249,7 @@ fun RegisterContent(
                     OutlinedTextField(
                         value = password,
                         onValueChange = onPasswordChange,
-                        placeholder = { Text("Mínimo 6 caracteres", color = Color(0xFFBDBDBD)) },
+                        placeholder = { Text("Tu contraseña", color = Color(0xFFBDBDBD)) },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isLoading,
                         visualTransformation = if (passwordVisible)
@@ -261,7 +259,7 @@ fun RegisterContent(
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Text(
-                                    text = if (passwordVisible) "👁️" else "👁️‍🗨️",
+                                    text = if (passwordVisible) "👁️" else "👁️",
                                     fontSize = 20.sp,
                                     color = Color(0xFF9E9E9E)
                                 )
@@ -275,38 +273,6 @@ fun RegisterContent(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         singleLine = true
                     )
-
-                    // Indicador de fortaleza de contraseña
-                    if (password.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val strength = when {
-                                password.length < 6 -> "Débil"
-                                password.length < 8 -> "Media"
-                                else -> "Fuerte"
-                            }
-                            val strengthColor = when {
-                                password.length < 6 -> Color(0xFFFF5252)
-                                password.length < 8 -> Color(0xFFFFC107)
-                                else -> Color(0xFF4CAF50)
-                            }
-
-                            Text(
-                                text = "Seguridad: ",
-                                fontSize = 12.sp,
-                                color = Color(0xFF666666)
-                            )
-                            Text(
-                                text = strength,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = strengthColor
-                            )
-                        }
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -350,10 +316,11 @@ fun RegisterContent(
                     }
                 }
 
-                // Campos del tutor (si está marcado)
+                // Mostrar campos de tutor si está marcado
                 if (requiresGuardian) {
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    // Información del tutor
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -494,7 +461,6 @@ fun RegisterContent(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Divisor
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -516,7 +482,6 @@ fun RegisterContent(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Link a Login
                 Row(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
@@ -543,7 +508,6 @@ fun RegisterContent(
                 Spacer(modifier = Modifier.height(40.dp))
             }
 
-            // Snackbar de error
             error?.let {
                 Snackbar(
                     modifier = Modifier
