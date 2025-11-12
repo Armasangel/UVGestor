@@ -1,6 +1,5 @@
 package com.uvg.uvgestor.presentation.viewmodel.income
 
-import AddIncomeUiState
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
