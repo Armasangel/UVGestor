@@ -9,6 +9,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,17 +33,51 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    if (uiState.showBudgetAlert) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onEvent(HomeUiEvent.BudgetAlertDismissed) },
+            icon = {
+                Text("⚠️", fontSize = 48.sp)
+            },
+            title = {
+                Text(
+                    "Alerta de Presupuesto",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(uiState.budgetAlertMessage)
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.onEvent(HomeUiEvent.BudgetAlertDismissed) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFF9800)
+                    )
+                ) {
+                    Text("Entendido")
+                }
+            }
+        )
+    }
+
     HomeContent(
         selectedPeriod = uiState.selectedPeriod,
         expenses = uiState.expenses,
         isLoading = uiState.isLoading,
         error = uiState.error,
-        totalAmount = uiState.totalAmount,
+        totalExpenses = uiState.totalExpenses,
+        totalIncomes = uiState.totalIncomes,
+        balance = uiState.balance,
         expensesByCategory = uiState.expensesByCategory,
+        currentBudget = uiState.currentBudget,
+        budgetPercentage = uiState.budgetPercentage,
         onPeriodChange = { viewModel.onEvent(HomeUiEvent.PeriodChanged(it)) },
         onRetryClick = { viewModel.onEvent(HomeUiEvent.RetryLoad) },
         onErrorDismiss = { viewModel.onEvent(HomeUiEvent.ErrorDismissed) },
         onAddExpenseClick = { navController.navigate(Screen.AddExpense.route) },
+        onAddIncomeClick = { navController.navigate(Screen.AddIncome.route) },
+        onBudgetClick = { navController.navigate(Screen.Budget.route) },
         onLogoutClick = {
             navController.navigate(Screen.AUTH_GRAPH_ROUTE) {
                 popUpTo(Screen.MAIN_GRAPH_ROUTE) {
@@ -62,16 +97,23 @@ fun HomeContent(
     expenses: List<Expense>,
     isLoading: Boolean,
     error: String?,
-    totalAmount: Double,
+    totalExpenses: Double,
+    totalIncomes: Double,
+    balance: Double,
     expensesByCategory: Map<String, Double>,
+    currentBudget: com.uvg.uvgestor.ui.data.Budget?,
+    budgetPercentage: Int,
     onPeriodChange: (String) -> Unit,
     onRetryClick: () -> Unit,
     onErrorDismiss: () -> Unit,
     onAddExpenseClick: () -> Unit,
+    onAddIncomeClick: () -> Unit,
+    onBudgetClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
     val uvgGreen = Color(0xFF00C853)
     val backgroundColor = Color(0xFFF5F5F5)
+    var showMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -84,11 +126,40 @@ fun HomeContent(
                     )
                 },
                 actions = {
-                    IconButton(onClick = onLogoutClick) {
+                    IconButton(onClick = { showMenu = true }) {
                         Icon(
-                            Icons.Default.ExitToApp,
-                            contentDescription = "Cerrar Sesión",
-                            tint = Color.Red
+                            Icons.Default.Settings,
+                            contentDescription = "Configuración"
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Configurar Presupuesto") },
+                            onClick = {
+                                showMenu = false
+                                onBudgetClick()
+                            },
+                            leadingIcon = {
+                                Text("💰", fontSize = 20.sp)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Cerrar Sesión") },
+                            onClick = {
+                                showMenu = false
+                                onLogoutClick()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.ExitToApp,
+                                    contentDescription = null,
+                                    tint = Color.Red
+                                )
+                            }
                         )
                     }
                 },
@@ -98,17 +169,30 @@ fun HomeContent(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddExpenseClick,
-                containerColor = uvgGreen,
-                modifier = Modifier.size(64.dp)
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Agregar Gasto",
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
+                SmallFloatingActionButton(
+                    onClick = onAddIncomeClick,
+                    containerColor = Color(0xFF4CAF50),
+                    contentColor = Color.White
+                ) {
+                    Text("💰", fontSize = 20.sp)
+                }
+
+                FloatingActionButton(
+                    onClick = onAddExpenseClick,
+                    containerColor = uvgGreen,
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Agregar",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
         },
         containerColor = backgroundColor
@@ -124,6 +208,139 @@ fun HomeContent(
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp)
             ) {
+                // TARJETA DE SALDO GENERAL
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (balance >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Saldo Total",
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Q${String.format("%.2f", balance)}",
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "Ingresos",
+                                    fontSize = 12.sp,
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                                Text(
+                                    "Q${String.format("%.2f", totalIncomes)}",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    "Gastos",
+                                    fontSize = 12.sp,
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                                Text(
+                                    "Q${String.format("%.2f", totalExpenses)}",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // INDICADOR DE PRESUPUESTO
+                if (currentBudget != null) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = when {
+                                budgetPercentage >= 100 -> Color(0xFFFFEBEE)
+                                budgetPercentage >= 80 -> Color(0xFFFFF3E0)
+                                else -> Color(0xFFE8F5E9)
+                            }
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        "Presupuesto Mensual",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        "Q${String.format("%.0f", totalExpenses)} / Q${String.format("%.0f", currentBudget.limitAmount)}",
+                                        fontSize = 12.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+
+                                Text(
+                                    "$budgetPercentage%",
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = when {
+                                        budgetPercentage >= 100 -> Color(0xFFD32F2F)
+                                        budgetPercentage >= 80 -> Color(0xFFFF6F00)
+                                        else -> Color(0xFF4CAF50)
+                                    }
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            LinearProgressIndicator(
+                                progress = { (budgetPercentage.coerceAtMost(100) / 100f) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp),
+                                color = when {
+                                    budgetPercentage >= 100 -> Color(0xFFD32F2F)
+                                    budgetPercentage >= 80 -> Color(0xFFFF6F00)
+                                    else -> Color(0xFF4CAF50)
+                                },
+                                trackColor = Color(0xFFE0E0E0)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 TimePeriodSelector(
                     selectedPeriod = selectedPeriod,
                     onPeriodSelected = onPeriodChange,
@@ -168,37 +385,20 @@ fun HomeContent(
                             modifier = Modifier.padding(16.dp)
                         ) {
                             Text(
-                                text = "Resumen de Gastos - $selectedPeriod",
+                                text = "Gastos por Categoría - $selectedPeriod",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(200.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    ExpenseChart(
-                                        totalAmount = totalAmount
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(16.dp))
-
+                            if (expensesByCategory.isNotEmpty()) {
                                 Column(
-                                    modifier = Modifier.weight(1f),
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     expensesByCategory.forEach { (category, amount) ->
-                                        val percentage = if (totalAmount > 0) {
-                                            (amount / totalAmount * 100).toInt()
+                                        val percentage = if (totalExpenses > 0) {
+                                            (amount / totalExpenses * 100).toInt()
                                         } else 0
 
                                         CategoryStatItem(
@@ -207,36 +407,20 @@ fun HomeContent(
                                             percentage = percentage
                                         )
                                     }
-
-                                    if (expensesByCategory.isEmpty()) {
-                                        Text(
-                                            "Sin gastos registrados",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = Color.Gray
-                                        )
-                                    }
                                 }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            HorizontalDivider()
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    "Total:",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp
-                                )
-                                Text(
-                                    "Q${String.format("%.2f", totalAmount)}",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    color = uvgGreen
-                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "Sin gastos en este período",
+                                        color = Color.Gray,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
                             }
                         }
                     }
@@ -353,37 +537,6 @@ fun TimePeriodSelector(
 }
 
 @Composable
-fun ExpenseChart(totalAmount: Double) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(150.dp)
-                .background(Color(0xFFE8F5E9), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    "Q${String.format("%.0f", totalAmount)}",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF00C853)
-                )
-                Text(
-                    "Total",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-            }
-        }
-    }
-}
-
-@Composable
 fun CategoryStatItem(category: String, amount: Double, percentage: Int) {
     val categoryColor = when (category) {
         "Comida" -> Color(0xFFFF6B6B)
@@ -454,7 +607,7 @@ fun ExpenseListItem(expense: Expense) {
                 "Q${String.format("%.2f", expense.amount)}",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF00C853)
+                color = Color(0xFFD32F2F)
             )
         }
     }

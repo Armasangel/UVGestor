@@ -7,13 +7,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.uvg.uvgestor.ui.screens.AddExpenseScreen
+import com.uvg.uvgestor.ui.screens.AddIncomeScreen
+import com.uvg.uvgestor.ui.screens.BudgetScreen
 import com.uvg.uvgestor.ui.screens.HomeScreen
 import com.uvg.uvgestor.ui.screens.TransactionDetailScreen
 import com.uvg.uvgestor.ui.screens.TransactionsScreen
 
-/**
- * @param navController
- */
 fun NavGraphBuilder.mainGraph(navController: NavHostController) {
     navigation(
         startDestination = Screen.Home.route,
@@ -25,6 +24,14 @@ fun NavGraphBuilder.mainGraph(navController: NavHostController) {
 
         composable(Screen.AddExpense.route) {
             AddExpenseScreen(navController = navController)
+        }
+
+        composable(Screen.AddIncome.route) {
+            AddIncomeScreen(navController = navController)
+        }
+
+        composable(Screen.Budget.route) {
+            BudgetScreen(navController = navController)
         }
 
         composable(Screen.Transactions.route) {
