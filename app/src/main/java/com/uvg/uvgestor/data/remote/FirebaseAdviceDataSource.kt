@@ -1,5 +1,6 @@
 package com.uvg.uvgestor.data.remote
 
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.uvg.uvgestor.ui.data.FinancialAdvice
@@ -12,6 +13,7 @@ class FirebaseAdviceDataSource {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val adviceCollection = firestore.collection("financial_advice")
+    private val TAG = "FirebaseAdviceDataSource"
 
     suspend fun addAdvice(advice: FinancialAdvice): Result<String> {
         return try {
@@ -22,8 +24,10 @@ class FirebaseAdviceDataSource {
             )
 
             val docRef = adviceCollection.add(adviceMap).await()
+            Log.d(TAG, "Consejo agregado con ID: ${docRef.id}")
             Result.success(docRef.id)
         } catch (e: Exception) {
+            Log.e(TAG, "Error al agregar consejo", e)
             Result.failure(e)
         }
     }
@@ -44,12 +48,15 @@ class FirebaseAdviceDataSource {
                         createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
                     )
                 } catch (e: Exception) {
+                    Log.e(TAG, "Error al parsear consejo: ${doc.id}", e)
                     null
                 }
             }
 
+            Log.d(TAG, "Consejos cargados: ${adviceList.size}")
             Result.success(adviceList)
         } catch (e: Exception) {
+            Log.e(TAG, "Error al cargar consejos", e)
             Result.failure(e)
         }
     }
@@ -71,12 +78,14 @@ class FirebaseAdviceDataSource {
                         createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
                     )
                 } catch (e: Exception) {
+                    Log.e(TAG, "Error al parsear consejo: ${doc.id}", e)
                     null
                 }
             }
 
             Result.success(adviceList)
         } catch (e: Exception) {
+            Log.e(TAG, "Error al cargar consejos por categoría", e)
             Result.failure(e)
         }
     }
@@ -86,6 +95,7 @@ class FirebaseAdviceDataSource {
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    Log.e(TAG, "Error en listener de consejos", error)
                     close(error)
                     return@addSnapshotListener
                 }
@@ -99,6 +109,7 @@ class FirebaseAdviceDataSource {
                             createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
                         )
                     } catch (e: Exception) {
+                        Log.e(TAG, "Error al parsear consejo: ${doc.id}", e)
                         null
                     }
                 } ?: emptyList()
@@ -111,11 +122,16 @@ class FirebaseAdviceDataSource {
 
     suspend fun initializeDefaultAdvice(): Result<Unit> {
         return try {
+            Log.d(TAG, "Verificando si ya existen consejos...")
+            
             // Verificar si ya existen consejos
             val snapshot = adviceCollection.limit(1).get().await()
             if (!snapshot.isEmpty) {
+                Log.d(TAG, "Ya existen consejos, no se inicializan")
                 return Result.success(Unit)
             }
+
+            Log.d(TAG, "Inicializando consejos predeterminados...")
 
             // Lista de consejos predeterminados
             val defaultAdvice = listOf(
@@ -187,12 +203,18 @@ class FirebaseAdviceDataSource {
             )
 
             // Agregar todos los consejos a Firestore
+            var successCount = 0
             defaultAdvice.forEach { advice ->
-                addAdvice(advice)
+                val result = addAdvice(advice)
+                if (result.isSuccess) {
+                    successCount++
+                }
             }
 
+            Log.d(TAG, "Consejos inicializados exitosamente: $successCount/${defaultAdvice.size}")
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e(TAG, "Error al inicializar consejos predeterminados", e)
             Result.failure(e)
         }
     }
