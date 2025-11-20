@@ -38,7 +38,8 @@ class FinancialAdviceViewModel(application: Application) : AndroidViewModel(appl
     val uiState: StateFlow<FinancialAdviceUiState> = _uiState.asStateFlow()
 
     init {
-        loadAdvice()
+        // Cargar consejos al iniciar
+        loadAdviceWithInitialization()
     }
 
     fun onEvent(event: FinancialAdviceUiEvent) {
@@ -61,7 +62,44 @@ class FinancialAdviceViewModel(application: Application) : AndroidViewModel(appl
                 _uiState.value = _uiState.value.copy(error = null)
             }
             FinancialAdviceUiEvent.RetryLoad -> {
-                loadAdvice()
+                loadAdviceWithInitialization()
+            }
+        }
+    }
+
+    private fun loadAdviceWithInitialization() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            
+            // Primero intentamos cargar desde Firebase
+            adviceRepository.getAllAdvice().collect { result ->
+                when (result) {
+                    is NetworkResult.Loading -> {
+                        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+                    }
+                    is NetworkResult.Success -> {
+                        val advice = result.data
+                        
+                        // Si no hay consejos, inicializamos los predeterminados
+                        if (advice.isEmpty()) {
+                            initializeDefaultAdvice()
+                        } else {
+                            _uiState.value = _uiState.value.copy(
+                                adviceList = advice,
+                                filteredAdviceList = advice,
+                                isLoading = false,
+                                error = null,
+                                isInitialized = true
+                            )
+                        }
+                    }
+                    is NetworkResult.Error -> {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = result.message
+                        )
+                    }
+                }
             }
         }
     }
@@ -85,11 +123,6 @@ class FinancialAdviceViewModel(application: Application) : AndroidViewModel(appl
                             error = null,
                             isInitialized = advice.isNotEmpty()
                         )
-
-                        // Si no hay consejos, inicializar con los predeterminados
-                        if (advice.isEmpty()) {
-                            initializeDefaultAdvice()
-                        }
                     }
                     is NetworkResult.Error -> {
                         _uiState.value = _uiState.value.copy(
@@ -104,13 +137,12 @@ class FinancialAdviceViewModel(application: Application) : AndroidViewModel(appl
 
     private fun initializeDefaultAdvice() {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            
             adviceRepository.initializeDefaultAdvice().collect { result ->
                 when (result) {
                     is NetworkResult.Loading -> {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = true,
-                            error = null
-                        )
+                        // Ya está en loading
                     }
                     is NetworkResult.Success -> {
                         // Recargar los consejos después de inicializarlos
@@ -119,7 +151,7 @@ class FinancialAdviceViewModel(application: Application) : AndroidViewModel(appl
                     is NetworkResult.Error -> {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
-                            error = result.message
+                            error = "Error al inicializar consejos: ${result.message}"
                         )
                     }
                 }
